@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BookPulse — Sentiment Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --ink:#1a1a1a;--ink2:#4a4a4a;--ink3:#8a8897;
+    --paper:#faf9f6;--surface:#ffffff;--surface2:#f4f2ed;
+    --border:#e8e4db;--border2:#d4cfC4;
+    --pos:#1a7a4a;--pos-bg:#eaf5ee;--pos-border:#b8dfc8;
+    --neu:#7a6f2e;--neu-bg:#fdf8e6;--neu-border:#e0d48a;
+    --neg:#b03030;--neg-bg:#fceaea;--neg-border:#e8b4b4;
+    --accent:#3a2d6e;--accent-soft:#ece9f5;
+    --gold:#c9922a;--gold-bg:#fdf3e0;
+    --ff-head:'Playfair Display',Georgia,serif;
+    --ff-body:'DM Sans',system-ui,sans-serif;
+    --r:10px;--r2:16px;
+    --shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04);
+  }
+  html[data-theme="dark"]{
+    --ink:#f2f0ea;--ink2:#c4c0b6;--ink3:#8f8b98;
+    --paper:#141319;--surface:#1c1b23;--surface2:#26242f;
+    --border:#33313d;--border2:#443f52;
+    --pos:#5fd39a;--pos-bg:#153026;--pos-border:#2c5f47;
+    --neu:#e0c264;--neu-bg:#302a15;--neu-border:#5f5327;
+    --neg:#f08a8a;--neg-bg:#31191a;--neg-border:#5f2f30;
+    --accent:#a99cf0;--accent-soft:#2a2540;
+    --gold:#e0ae52;--gold-bg:#302614;
+    --shadow:0 1px 3px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+  }
+  body{font-family:var(--ff-body);background:var(--paper);color:var(--ink);font-size:15px;line-height:1.6;transition:background .2s,color .2s}
+
+  /* NAV */
+  .nav{background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:60px}
+  .nav-brand{font-family:var(--ff-head);font-size:1.4rem;font-weight:700;color:var(--accent);letter-spacing:-.02em;display:flex;align-items:center;gap:.5rem}
+  .nav-brand span{font-weight:300;color:var(--ink3);font-size:1rem;font-family:var(--ff-body)}
+  .nav-tabs{display:flex;gap:.25rem}
+  .nav-tab{padding:.4rem .9rem;border-radius:var(--r);font-size:.85rem;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--ink2);transition:all .15s}
+  .nav-tab:hover{background:var(--surface2);color:var(--ink)}
+  .nav-tab.active{background:var(--accent-soft);color:var(--accent)}
+  .nav-badge{font-size:.7rem;background:var(--accent);color:#fff;border-radius:20px;padding:1px 7px;margin-left:.3rem}
+
+  /* LAYOUT */
+  .page{display:none;padding:2rem;max-width:1100px;margin:0 auto;animation:fadeUp .25s ease}
+  .page.active{display:block}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  /* SUMMARY STRIP */
+  .kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin-bottom:1.75rem}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:.9rem 1.1rem;text-align:center}
+  .kpi-val{font-family:var(--ff-head);font-size:1.9rem;font-weight:700;line-height:1;margin-bottom:.25rem}
+  .kpi-label{font-size:.75rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em}
+  .kpi-val.pos{color:var(--pos)}
+  .kpi-val.neg{color:var(--neg)}
+  .kpi-val.neu{color:var(--neu)}
+  .kpi-val.gold{color:var(--gold)}
+
+  /* SECTION TITLE */
+  .sec-head{display:flex;align-items:baseline;gap:.75rem;margin-bottom:1rem;margin-top:1.5rem}
+  .sec-head h2{font-family:var(--ff-head);font-size:1.2rem;font-weight:500;color:var(--ink)}
+  .sec-head span{font-size:.8rem;color:var(--ink3)}
+
+  /* CHART CARDS */
+  .chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;margin-bottom:1.5rem}
+  .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:1.25rem;box-shadow:var(--shadow)}
+  .chart-card h3{font-size:.8rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.75rem}
+  .chart-wrap{position:relative}
+
+  /* BOOK TABLE */
+  .book-table{width:100%;border-collapse:collapse;font-size:.88rem}
+  .book-table th{text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);padding:.5rem .75rem;border-bottom:2px solid var(--border);font-weight:500}
+  .book-table td{padding:.6rem .75rem;border-bottom:1px solid var(--border);vertical-align:middle}
+  .book-table tr:hover td{background:var(--surface2)}
+  .book-table td:last-child{text-align:right}
+  .book-table .title-cell{font-weight:500;color:var(--ink)}
+  .book-table .author-cell{color:var(--ink3);font-size:.83rem}
+  .stars{color:var(--gold);letter-spacing:-.05em;font-size:.9rem}
+  .polarity-bar-wrap{width:80px;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle}
+  .polarity-bar{height:100%;border-radius:4px;transition:width .4s}
+  .sent-badge{display:inline-block;font-size:.72rem;font-weight:500;padding:2px 8px;border-radius:20px;letter-spacing:.02em}
+  .sent-pos{background:var(--pos-bg);color:var(--pos);border:1px solid var(--pos-border)}
+  .sent-neg{background:var(--neg-bg);color:var(--neg);border:1px solid var(--neg-border)}
+  .sent-mix{background:var(--neu-bg);color:var(--neu);border:1px solid var(--neu-border)}
+
+  /* REVIEWS PAGE */
+  .review-controls{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1.25rem;align-items:center}
+  .review-controls select,.review-controls input{padding:.42rem .75rem;border:1px solid var(--border2);border-radius:var(--r);font-family:var(--ff-body);font-size:.85rem;background:var(--surface);color:var(--ink);outline:none}
+  .review-controls select:focus,.review-controls input:focus{border-color:var(--accent)}
+  .review-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.9rem}
+  .review-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:1.1rem;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:.6rem}
+  .review-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem}
+  .review-book{font-weight:500;font-size:.88rem;color:var(--ink);line-height:1.3}
+  .review-meta{font-size:.75rem;color:var(--ink3);margin-top:2px}
+  .review-text{font-size:.85rem;color:var(--ink2);line-height:1.65;font-style:italic}
+  .review-footer{display:flex;align-items:center;justify-content:space-between;font-size:.75rem;color:var(--ink3);border-top:1px solid var(--border);padding-top:.5rem;margin-top:.2rem}
+  .polarity-pill{display:inline-flex;align-items:center;gap:3px;font-size:.72rem;font-weight:500;padding:2px 8px;border-radius:20px}
+  .theme-tags{display:flex;flex-wrap:wrap;gap:4px}
+  .theme-tag{font-size:.7rem;background:var(--surface2);color:var(--ink3);border:1px solid var(--border);border-radius:20px;padding:1px 8px}
+  .review-count{font-size:.82rem;color:var(--ink3);margin-bottom:.5rem}
+
+  /* ANALYZER */
+  .analyzer-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:1.5rem;box-shadow:var(--shadow);margin-bottom:1.5rem}
+  .analyzer-wrap h3{font-family:var(--ff-head);font-size:1.1rem;font-weight:500;margin-bottom:.75rem}
+  .analyzer-textarea{width:100%;min-height:110px;padding:.75rem 1rem;border:1px solid var(--border2);border-radius:var(--r);font-family:var(--ff-body);font-size:.92rem;line-height:1.6;resize:vertical;color:var(--ink);background:var(--paper);outline:none;transition:border-color .15s}
+  .analyzer-textarea:focus{border-color:var(--accent)}
+  .analyzer-actions{display:flex;gap:.6rem;margin-top:.75rem;align-items:center}
+  .btn{padding:.45rem 1.1rem;border-radius:var(--r);font-family:var(--ff-body);font-size:.85rem;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--surface);color:var(--ink);transition:all .15s}
+  .btn:hover{background:var(--surface2);border-color:var(--border2)}
+  .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn-primary:hover{background:#4e3d8a;border-color:#4e3d8a}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .analyzer-result{margin-top:1.25rem;display:none}
+  .result-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.75rem;margin-bottom:1rem}
+  .result-card{border-radius:var(--r);padding:.8rem 1rem;text-align:center}
+  .result-card .val{font-family:var(--ff-head);font-size:1.6rem;font-weight:700;line-height:1}
+  .result-card .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;margin-top:.3rem}
+  .result-pos{background:var(--pos-bg);border:1px solid var(--pos-border);color:var(--pos)}
+  .result-neg{background:var(--neg-bg);border:1px solid var(--neg-border);color:var(--neg)}
+  .result-neu{background:var(--neu-bg);border:1px solid var(--neu-border);color:var(--neu)}
+  .result-sub{background:var(--accent-soft);border:1px solid #d0c9ef;color:var(--accent)}
+  .polar-gauge{width:100%;height:18px;border-radius:9px;background:linear-gradient(90deg,#fceaea,#f4f2ed,#eaf5ee);position:relative;overflow:visible;margin:1rem 0 .5rem}
+  .polar-marker{width:18px;height:18px;border-radius:50%;background:var(--accent);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25);position:absolute;top:0;transform:translateX(-50%);transition:left .5s cubic-bezier(.34,1.56,.64,1)}
+  .polar-labels{display:flex;justify-content:space-between;font-size:.7rem;color:var(--ink3)}
+  .ai-verdict{border:1px solid var(--border);border-radius:var(--r);padding:.85rem 1rem;font-size:.88rem;line-height:1.7;background:var(--surface2)}
+  .ai-verdict strong{display:block;margin-bottom:.3rem;font-size:.85rem;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);font-weight:500}
+  .sample-btns{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.75rem}
+  .sample-btn{font-size:.78rem;padding:.3rem .8rem;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--ink2);cursor:pointer;transition:all .15s}
+  .sample-btn:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+
+  /* THEME TOGGLE */
+  .theme-toggle{padding:.4rem .8rem;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);color:var(--ink2);font-family:var(--ff-body);font-size:.8rem;font-weight:500;cursor:pointer;transition:all .15s}
+  .theme-toggle:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* LEGEND */
+  .legend{display:flex;flex-wrap:wrap;gap:.75rem;margin-bottom:.75rem}
+  .legend-item{display:flex;align-items:center;gap:5px;font-size:.78rem;color:var(--ink2)}
+  .legend-dot{width:10px;height:10px;border-radius:2px}
+
+  /* LOADER */
+  .loader{display:inline-block;width:16px;height:16px;border:2px solid #e0ddf5;border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:.4rem}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">📚 BookPulse <span>Sentiment Dashboard</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('overview')">Overview</button>
+    <button class="nav-tab" onclick="showPage('books')">Books <span class="nav-badge">8</span></button>
+    <button class="nav-tab" onclick="showPage('reviews')">Reviews <span class="nav-badge">96</span></button>
+    <button class="nav-tab" onclick="showPage('analyzer')">Analyzer</button>
+  </div>
+  <button id="themeToggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">🌙 Dark</button>
+</nav>
+
+<!-- OVERVIEW PAGE -->
+<div id="page-overview" class="page active">
+  <div class="kpi-strip">
+    <div class="kpi"><div class="kpi-val pos">72.9%</div><div class="kpi-label">Positive</div></div>
+    <div class="kpi"><div class="kpi-val neu">17.7%</div><div class="kpi-label">Neutral</div></div>
+    <div class="kpi"><div class="kpi-val neg">9.4%</div><div class="kpi-label">Negative</div></div>
+    <div class="kpi"><div class="kpi-val gold">3.90★</div><div class="kpi-label">Avg Rating</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:var(--accent)">+0.254</div><div class="kpi-label">Avg Polarity</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:var(--ink2)">96</div><div class="kpi-label">Reviews</div></div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Sentiment distribution</h3>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-dot" style="background:#1a7a4a"></span> Positive</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#c9922a"></span> Neutral</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#b03030"></span> Negative</span>
+      </div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="sentDonut" role="img" aria-label="Donut chart: 72.9% positive, 17.7% neutral, 9.4% negative">Positive 72.9%, Neutral 17.7%, Negative 9.4%</canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>Average rating by genre</h3>
+      <div class="chart-wrap" style="height:260px">
+        <canvas id="genreBar" role="img" aria-label="Horizontal bar chart of average ratings by genre">Genre ratings comparison</canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>Polarity score by book</h3>
+      <div class="chart-wrap" style="height:260px">
+        <canvas id="polarityBar" role="img" aria-label="Bar chart showing average polarity for each book">Polarity scores per book</canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>Sentiment trend over time</h3>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="trendLine" role="img" aria-label="Line chart of average monthly sentiment polarity across 2025">Monthly sentiment trend 2025</canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-head"><h2>Top discussed themes</h2><span>by mention count and positivity</span></div>
+  <div class="chart-card" style="margin-bottom:1.5rem">
+    <div class="chart-wrap" style="height:200px">
+      <canvas id="themeChart" role="img" aria-label="Bar chart of top reader discussion themes">Top reader themes</canvas>
+    </div>
+  </div>
+
+  <div class="sec-head"><h2>Key insights</h2></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.9rem;margin-bottom:1.5rem" id="insights-grid"></div>
+</div>
+
+<!-- BOOKS PAGE -->
+<div id="page-books" class="page">
+  <div class="sec-head"><h2>Book sentiment summary</h2><span>8 titles · 96 reviews</span></div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;box-shadow:var(--shadow)">
+    <table class="book-table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Genre</th>
+          <th>Rating</th>
+          <th>Polarity</th>
+          <th style="text-align:center">Sentiment %</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="books-tbody"></tbody>
+    </table>
+  </div>
+  <div class="chart-grid" style="margin-top:1.5rem">
+    <div class="chart-card">
+      <h3>Positive % by book</h3>
+      <div class="chart-wrap" style="height:280px">
+        <canvas id="posBar" role="img" aria-label="Horizontal bar chart of positive sentiment percentage per book">Positive sentiment per book</canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>Rating vs polarity scatter</h3>
+      <div class="chart-wrap" style="height:280px">
+        <canvas id="scatter" role="img" aria-label="Scatter chart of rating vs polarity score for each book">Rating versus polarity scatter</canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- REVIEWS PAGE -->
+<div id="page-reviews" class="page">
+  <div class="review-controls">
+    <select id="filterBook" onchange="renderReviews()">
+      <option value="">All books</option>
+    </select>
+    <select id="filterSentiment" onchange="renderReviews()">
+      <option value="">All sentiments</option>
+      <option value="positive">Positive</option>
+      <option value="neutral">Neutral</option>
+      <option value="negative">Negative</option>
+    </select>
+    <select id="filterGenre" onchange="renderReviews()">
+      <option value="">All genres</option>
+    </select>
+    <input type="text" id="searchText" placeholder="Search reviews…" oninput="renderReviews()" style="min-width:180px">
+  </div>
+  <div class="review-count" id="review-count"></div>
+  <div class="review-grid" id="reviews-grid"></div>
+</div>
+
+<!-- ANALYZER PAGE -->
+<div id="page-analyzer" class="page">
+  <div class="analyzer-wrap">
+    <h3>Live Sentiment Analyzer</h3>
+    <p style="font-size:.85rem;color:var(--ink3);margin-bottom:1rem">Enter any book review or text passage below to analyze its sentiment polarity, subjectivity, and emotional tone.</p>
+    <textarea class="analyzer-textarea" id="analyzerText" placeholder="Paste or type a review here…"></textarea>
+    <div style="display:flex;gap:.5rem;margin-top:.5rem;flex-wrap:wrap">
+      <span style="font-size:.75rem;color:var(--ink3);margin-top:.5rem">Try a sample:</span>
+      <div class="sample-btns">
+        <button class="sample-btn" onclick="setSample('A beautifully written masterpiece. The prose flows effortlessly and the emotional depth genuinely moved me to tears. An unforgettable reading experience.')">Positive review</button>
+        <button class="sample-btn" onclick="setSample('Found the pacing glacial and the characters unconvincing. The ending felt rushed and disappointing after such a long, slow build-up.')">Negative review</button>
+        <button class="sample-btn" onclick="setSample('Decent enough read. Nothing particularly groundbreaking but competently written. Some chapters were stronger than others.')">Neutral review</button>
+        <button class="sample-btn" onclick="setSample('Absolutely gripping and dark — loved the unreliable narrator but the ending left me cold and frustrated. Can\'t decide if I liked it.')">Mixed review</button>
+      </div>
+    </div>
+    <div class="analyzer-actions">
+      <button class="btn btn-primary" id="analyzeBtn" onclick="analyzeSentiment()">Analyze</button>
+      <button class="btn" onclick="clearAnalyzer()">Clear</button>
+      <span id="analyzerStatus" style="font-size:.82rem;color:var(--ink3)"></span>
+    </div>
+    <div class="analyzer-result" id="analyzerResult">
+      <div class="result-grid">
+        <div class="result-card" id="resCardSent"><div class="val" id="resLabel">—</div><div class="lbl">Sentiment</div></div>
+        <div class="result-card result-sub"><div class="val" id="resPolarity">—</div><div class="lbl">Polarity</div></div>
+        <div class="result-card result-sub"><div class="val" id="resSubjectivity">—</div><div class="lbl">Subjectivity</div></div>
+        <div class="result-card result-sub"><div class="val" id="resWordCount">—</div><div class="lbl">Word count</div></div>
+      </div>
+      <div class="polar-gauge"><div class="polar-marker" id="polarMarker"></div></div>
+      <div class="polar-labels"><span style="color:var(--neg)">Very Negative (−1.0)</span><span>Neutral (0)</span><span style="color:var(--pos)">Very Positive (+1.0)</span></div>
+      <div class="ai-verdict" id="aiVerdict" style="margin-top:1rem"></div>
+    </div>
+  </div>
+
+  <div class="sec-head"><h2>Dataset sentiment distribution</h2><span>breakdown from the 96-review corpus</span></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Sentiment by book (stacked)</h3>
+      <div class="chart-wrap" style="height:300px">
+        <canvas id="stackedBar" role="img" aria-label="Stacked bar chart showing positive, neutral, and negative review counts per book">Stacked sentiment by book</canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>Polarity distribution histogram</h3>
+      <div class="chart-wrap" style="height:300px">
+        <canvas id="histogram" role="img" aria-label="Histogram of polarity score distribution across all reviews">Polarity histogram</canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+const SENTIMENT_DATA = [{"book_id":6,"title":"Project Hail Mary","author":"Andy Weir","genre":"Sci-Fi","total_reviews":12,"avg_rating":4.5,"avg_polarity":0.462,"avg_subjectivity":0.688,"avg_word_count":19,"negative_count":0,"neutral_count":0,"positive_count":12,"positive_pct":100.0,"neutral_pct":0.0,"negative_pct":0.0,"overall_sentiment":"Positive"},{"book_id":1,"title":"The Midnight Library","author":"Matt Haig","genre":"Fiction","total_reviews":12,"avg_rating":4.0,"avg_polarity":0.253,"avg_subjectivity":0.608,"avg_word_count":20,"negative_count":2,"neutral_count":3,"positive_count":7,"positive_pct":58.3,"neutral_pct":25.0,"negative_pct":16.7,"overall_sentiment":"Positive"},{"book_id":5,"title":"Sapiens","author":"Yuval Noah Harari","genre":"Non-Fiction","total_reviews":12,"avg_rating":4.0,"avg_polarity":0.347,"avg_subjectivity":0.556,"avg_word_count":16,"negative_count":0,"neutral_count":0,"positive_count":12,"positive_pct":100.0,"neutral_pct":0.0,"negative_pct":0.0,"overall_sentiment":"Positive"},{"book_id":2,"title":"Atomic Habits","author":"James Clear","genre":"Self-Help","total_reviews":12,"avg_rating":4.0,"avg_polarity":0.26,"avg_subjectivity":0.506,"avg_word_count":17,"negative_count":1,"neutral_count":2,"positive_count":9,"positive_pct":75.0,"neutral_pct":16.7,"negative_pct":8.3,"overall_sentiment":"Positive"},{"book_id":8,"title":"Thinking, Fast and Slow","author":"Daniel Kahneman","genre":"Non-Fiction","total_reviews":12,"avg_rating":4.0,"avg_polarity":0.201,"avg_subjectivity":0.504,"avg_word_count":17,"negative_count":0,"neutral_count":5,"positive_count":7,"positive_pct":58.3,"neutral_pct":41.7,"negative_pct":0.0,"overall_sentiment":"Positive"},{"book_id":3,"title":"Dune","author":"Frank Herbert","genre":"Sci-Fi","total_reviews":12,"avg_rating":3.83,"avg_polarity":0.217,"avg_subjectivity":0.55,"avg_word_count":18,"negative_count":0,"neutral_count":4,"positive_count":8,"positive_pct":66.7,"neutral_pct":33.3,"negative_pct":0.0,"overall_sentiment":"Positive"},{"book_id":7,"title":"The Alchemist","author":"Paulo Coelho","genre":"Fiction","total_reviews":12,"avg_rating":3.58,"avg_polarity":0.296,"avg_subjectivity":0.63,"avg_word_count":17,"negative_count":1,"neutral_count":2,"positive_count":9,"positive_pct":75.0,"neutral_pct":16.7,"negative_pct":8.3,"overall_sentiment":"Positive"},{"book_id":4,"title":"Gone Girl","author":"Gillian Flynn","genre":"Thriller","total_reviews":12,"avg_rating":3.25,"avg_polarity":-0.005,"avg_subjectivity":0.694,"avg_word_count":18,"negative_count":5,"neutral_count":1,"positive_count":6,"positive_pct":50.0,"neutral_pct":8.3,"negative_pct":41.7,"overall_sentiment":"Mixed"}];
+
+const REVIEWS = [{"book_id":1,"title":"The Midnight Library","author":"Matt Haig","genre":"Fiction","year_published":2020,"date":"2025-01-01","stars":5,"review_text":"A beautifully written exploration of regret and second chances. Haig's prose is luminous and the central conceit never wears out its welcome. Genuinely moved me to tears.","word_count":27,"polarity":0.41,"subjectivity":0.53,"sentiment":"positive","confidence":0.5123,"themes":"Writing Style; Emotional Impact","month":"2025-01"},{"book_id":1,"title":"The Midnight Library","author":"Matt Haig","genre":"Fiction","year_published":2020,"date":"2025-02-01","stars":5,"review_text":"One of the most imaginative novels I've read in years. The idea of a library between life and death is executed with real emotional intelligence. Loved every page.","word_count":28,"polarity":0.45,"subjectivity":0.7437,"sentiment":"positive","confidence":0.6097,"themes":"Emotional Impact; Originality","month":"2025-02"},{"book_id":1,"title":"The Midnight Library","author":"Matt Haig","genre":"Fiction","year_published":2020,"date":"2025-03-01","stars":4,"review_text":"Charming and thought-provoking. The philosophical underpinning is solid without being heavy-handed. Would recommend to anyone going through a difficult period.","word_count":20,"polarity":0.12,"subjectivity":0.48,"sentiment":"neutral","confidence":0.4976,"themes":"Ending/Resolution; Accessibility","month":"2025-03"},{"book_id":1,"title":"The Midnight Library","author":"Matt Haig","genre":"Fiction","year_published":2020,"date":"2025-03-01","stars":5,"review_text":"An uplifting story that manages to be hopeful without being saccharine. Haig clearly understands depression and anxiety in a deeply personal way.","word_count":22,"polarity":0.05,"subjectivity":0.3417,"sentiment":"neutral","confidence":0.4921,"themes":"Character Depth; Plot & Pacing; Accessibility","month":"2025-03"},{"book_id":1,"title":"The Midnight Library","author":"Matt Haig","genre":"Fiction","year_published":2020,"date":"2025-04-01","stars":3,"review_text":"Good but not great. The premise is strong but the execution felt a little too neat. Every lesson Nora needed to learn came gift-wrapped.","word_count":24,"polarity":0.1365,"subjectivity":0.6458,"sentiment":"neutral","confidence":0.5199,"themes":"General","month":"2025-04"},{"book_id":1,"title":"The Midnight Library","author":"Matt Haig","genre":"Fiction","year_published":2020,"date":"2025-05-01","stars":2,"review_text":"The premise is clever but the execution felt shallow. Too neat and emotionally manipulative by the end. Characters felt thin.","word_count":20,"polarity":-0.1417,"subjectivity":0.7083,"sentiment":"negative","confidence":0.5295,"themes":"Character Depth; Emotional Impact; Ending/Resolution","month":"2025-05"},{"book_id":1,"title":"The Midnight Library","author":"Matt Haig","genre":"Fiction","year_published":2020,"date":"2025-06-01","stars":5,"review_text":"Absolutely loved this. Read it in one sitting. The message about appreciating your own life resonated deeply.","word_count":17,"polarity":0.4333,"subjectivity":0.7333,"sentiment":"positive","confidence":0.6011,"themes":"Emotional Impact; Themes & Meaning","month":"2025-06"},{"book_id":1,"title":"The Midnight Library","author":"Matt Haig","genre":"Fiction","year_published":2020,"date":"2025-07-01","stars":4,"review_text":"Beautiful writing and a genuinely original concept. Some chapters drag but the emotional payoff is worth it.","word_count":17,"polarity":0.285,"subjectivity":0.5142,"sentiment":"positive","confidence":0.504,"themes":"Writing Style; Plot & Pacing; Emotional Impact; Originality","month":"2025-07"},{"book_id":1,"title":"The Midnight Library","author":"Matt Haig","genre":"Fiction","year_published":2020,"date":"2025-08-01","stars":2,"review_text":"Found it overly sentimental and predictable. The metaphor is heavy-handed and the ending far too convenient.","word_count":16,"polarity":-0.1167,"subjectivity":0.8333,"sentiment":"negative","confidence":0.5389,"themes":"Ending/Resolution","month":"2025-08"},{"book_id":1,"title":"The Midnight Library","author":"Matt Haig","genre":"Fiction","year_published":2020,"date":"2025-09-01","stars":5,"review_text":"Exceptionally moving. Tackles mental health with sensitivity and wisdom. One of my favourite books this year.","word_count":16,"polarity":0.2833,"subjectivity":0.6,"sentiment":"positive","confidence":0.5283,"themes":"Emotional Impact; Themes & Meaning","month":"2025-09"},{"book_id":1,"title":"The Midnight Library","author":"Matt Haig","genre":"Fiction","year_published":2020,"date":"2025-10-01","stars":3,"review_text":"Good concept but I felt the middle sagged considerably. Still worth reading for the beautiful prose alone.","word_count":17,"polarity":0.39,"subjectivity":0.43,"sentiment":"positive","confidence":0.4727,"themes":"Writing Style","month":"2025-10"},{"book_id":1,"title":"The Midnight Library","author":"Matt Haig","genre":"Fiction","year_published":2020,"date":"2025-11-01","stars":5,"review_text":"Haig at his absolute best. Insightful, tender and hopeful without being cloying. Perfect gift for a friend in need.","word_count":19,"polarity":0.7333,"subjectivity":0.7333,"sentiment":"positive","confidence":0.6711,"themes":"Ending/Resolution; Themes & Meaning","month":"2025-11"},{"book_id":2,"title":"Atomic Habits","author":"James Clear","genre":"Self-Help","year_published":2018,"date":"2025-01-01","stars":5,"review_text":"Changed how I think about behaviour change entirely. Practical, evidence-based and surprisingly moving. The 1% improvement framework is genius.","word_count":19,"polarity":0.35,"subjectivity":0.5625,"sentiment":"positive","confidence":0.5219,"themes":"Emotional Impact","month":"2025-01"},{"book_id":2,"title":"Atomic Habits","author":"James Clear","genre":"Self-Help","year_published":2018,"date":"2025-02-01","stars":5,"review_text":"The best self-help book I've ever read. Grounded in science, full of actionable advice and genuinely engaging to read.","word_count":19,"polarity":0.5833,"subjectivity":0.5167,"sentiment":"positive","confidence":0.5097,"themes":"General","month":"2025-02"},{"book_id":2,"title":"Atomic Habits","author":"James Clear","genre":"Self-Help","year_published":2018,"date":"2025-03-01","stars":4,"review_text":"Repetitive in places but the core ideas are gold. The four laws of behaviour change are easy to remember and apply.","word_count":21,"polarity":0.0917,"subjectivity":0.5417,"sentiment":"neutral","confidence":0.5038,"themes":"Accessibility","month":"2025-03"},{"book_id":2,"title":"Atomic Habits","author":"James Clear","genre":"Self-Help","year_published":2018,"date":"2025-04-01","stars":3,"review_text":"Good practical advice but nothing revolutionary. Most concepts felt familiar from other productivity books. Decent but overhyped.","word_count":17,"polarity":0.3233,"subjectivity":0.5283,"sentiment":"positive","confidence":0.5091,"themes":"General","month":"2025-04"},{"book_id":2,"title":"Atomic Habits","author":"James Clear","genre":"Self-Help","year_published":2018,"date":"2025-05-01","stars":5,"review_text":"Genuinely life-changing. Applied the two-minute rule to start exercising and have not stopped in six months. Remarkable book.","word_count":18,"polarity":0.575,"subjectivity":0.625,"sentiment":"positive","confidence":0.5719,"themes":"General","month":"2025-05"},{"book_id":2,"title":"Atomic Habits","author":"James Clear","genre":"Self-Help","year_published":2018,"date":"2025-06-01","stars":3,"review_text":"Solid framework but too many repetitive examples. The message could be delivered in half the pages.","word_count":16,"polarity":0.0208,"subjectivity":0.2542,"sentiment":"neutral","confidence":0.4949,"themes":"Themes & Meaning","month":"2025-06"},{"book_id":2,"title":"Atomic Habits","author":"James Clear","genre":"Self-Help","year_published":2018,"date":"2025-07-01","stars":5,"review_text":"Outstanding. Clear writes with clarity and warmth. Every chapter contains at least one idea worth implementing immediately.","word_count":17,"polarity":0.15,"subjectivity":0.4396,"sentiment":"positive","confidence":0.4909,"themes":"Writing Style","month":"2025-07"},{"book_id":2,"title":"Atomic Habits","author":"James Clear","genre":"Self-Help","year_published":2018,"date":"2025-08-01","stars":1,"review_text":"Did not enjoy this at all. Overly simplistic and the anecdotes are cherry-picked to support a thesis that ignores systemic barriers.","word_count":21,"polarity":-0.35,"subjectivity":0.5,"sentiment":"negative","confidence":0.5,"themes":"General","month":"2025-08"},{"book_id":2,"title":"Atomic Habits","author":"James Clear","genre":"Self-Help","year_published":2018,"date":"2025-09-01","stars":5,"review_text":"Fantastic read. The identity-based habits section completely reframed how I think about personal development.","word_count":14,"polarity":0.1667,"subjectivity":0.5333,"sentiment":"positive","confidence":0.5056,"themes":"Character Depth","month":"2025-09"},{"book_id":2,"title":"Atomic Habits","author":"James Clear","genre":"Self-Help","year_published":2018,"date":"2025-10-01","stars":4,"review_text":"Very good but I wanted more depth on the neuroscience. The practical tips are excellent though.","word_count":16,"polarity":0.8033,"subjectivity":0.76,"sentiment":"positive","confidence":0.7089,"themes":"World-building","month":"2025-10"},{"book_id":2,"title":"Atomic Habits","author":"James Clear","genre":"Self-Help","year_published":2018,"date":"2025-11-01","stars":5,"review_text":"Transformative. Read it yearly. Every re-read surfaces ideas I missed the first time.","word_count":13,"polarity":0.25,"subjectivity":0.3333,"sentiment":"positive","confidence":0.4583,"themes":"Re-readability","month":"2025-11"},{"book_id":2,"title":"Atomic Habits","author":"James Clear","genre":"Self-Help","year_published":2018,"date":"2025-12-01","stars":3,"review_text":"Moderate. The concepts are good but the writing style is overly corporate and dry in sections.","word_count":16,"polarity":0.1583,"subjectivity":0.475,"sentiment":"positive","confidence":0.496,"themes":"Writing Style","month":"2025-12"},{"book_id":3,"title":"Dune","author":"Frank Herbert","genre":"Sci-Fi","year_published":1965,"date":"2025-01-01","stars":5,"review_text":"Dense world-building that rewards patience. The ecological and political themes feel more prescient than ever. Essential science fiction.","word_count":18,"polarity":0.225,"subjectivity":0.375,"sentiment":"positive","confidence":0.4719,"themes":"World-building; Themes & Meaning; Accessibility","month":"2025-01"},{"book_id":3,"title":"Dune","author":"Frank Herbert","genre":"Sci-Fi","year_published":1965,"date":"2025-02-01","stars":5,"review_text":"A masterpiece of world-building. The layers of politics, religion and ecology create one of the richest fictional universes ever conceived.","word_count":20,"polarity":0.0,"subjectivity":0.25,"sentiment":"neutral","confidence":0.5,"themes":"World-building","month":"2025-02"},{"book_id":3,"title":"Dune","author":"Frank Herbert","genre":"Sci-Fi","year_published":1965,"date":"2025-03-01","stars":1,"review_text":"Gave up 200 pages in. The political intrigue overwhelmed everything and I could not connect with any character.","word_count":18,"polarity":0.0,"subjectivity":0.1,"sentiment":"neutral","confidence":0.5,"themes":"Character Depth","month":"2025-03"},{"book_id":3,"title":"Dune","author":"Frank Herbert","genre":"Sci-Fi","year_published":1965,"date":"2025-04-01","stars":4,"review_text":"Slow to start but absolutely magnificent once it finds its rhythm. Paul's journey is compelling and the themes are timeless.","word_count":20,"polarity":0.3333,"subjectivity":0.6667,"sentiment":"positive","confidence":0.5556,"themes":"Plot & Pacing; Themes & Meaning","month":"2025-04"},{"book_id":3,"title":"Dune","author":"Frank Herbert","genre":"Sci-Fi","year_published":1965,"date":"2025-05-01","stars":5,"review_text":"The films brought me here and the book far exceeded my expectations. Richer, deeper and more thought-provoking.","word_count":17,"polarity":0.3333,"subjectivity":0.6,"sentiment":"positive","confidence":0.5333,"themes":"World-building","month":"2025-05"},{"book_id":3,"title":"Dune","author":"Frank Herbert","genre":"Sci-Fi","year_published":1965,"date":"2025-06-01","stars":4,"review_text":"A complex and demanding read but enormously rewarding. The appendices alone are worth reading for the world-building depth.","word_count":18,"polarity":0.1667,"subjectivity":0.5,"sentiment":"positive","confidence":0.5,"themes":"Character Depth; World-building; Ending/Resolution; Accessibility","month":"2025-06"},{"book_id":3,"title":"Dune","author":"Frank Herbert","genre":"Sci-Fi","year_published":1965,"date":"2025-07-01","stars":3,"review_text":"Brilliant but difficult. The lack of dialogue tags and dense internal monologue made the early chapters a slog.","word_count":18,"polarity":0.125,"subjectivity":0.575,"sentiment":"neutral","confidence":0.5094,"themes":"Accessibility","month":"2025-07"},{"book_id":3,"title":"Dune","author":"Frank Herbert","genre":"Sci-Fi","year_published":1965,"date":"2025-08-01","stars":2,"review_text":"Bored me completely. I can see why others love it but the pacing is glacial and characters feel like archetypes not people.","word_count":22,"polarity":0.0333,"subjectivity":0.6667,"sentiment":"neutral","confidence":0.5056,"themes":"Character Depth; Plot & Pacing","month":"2025-08"},{"book_id":3,"title":"Dune","author":"Frank Herbert","genre":"Sci-Fi","year_published":1965,"date":"2025-09-01","stars":5,"review_text":"Among the finest novels ever written. The ecological allegory is profound and the prose is rich and layered.","word_count":18,"polarity":0.2861,"subjectivity":0.7833,"sentiment":"positive","confidence":0.5811,"themes":"Writing Style; World-building; Themes & Meaning","month":"2025-09"},{"book_id":3,"title":"Dune","author":"Frank Herbert","genre":"Sci-Fi","year_published":1965,"date":"2025-10-01","stars":5,"review_text":"Extraordinary scope and vision. Herbert created a universe that feels genuinely alien yet entirely coherent.","word_count":15,"polarity":0.1944,"subjectivity":0.8167,"sentiment":"positive","confidence":0.5616,"themes":"World-building","month":"2025-10"},{"book_id":3,"title":"Dune","author":"Frank Herbert","genre":"Sci-Fi","year_published":1965,"date":"2025-11-01","stars":5,"review_text":"Re-read this for the fourth time. Still discovering new layers. A genuine literary achievement.","word_count":14,"polarity":0.1591,"subjectivity":0.2636,"sentiment":"positive","confidence":0.4624,"themes":"World-building; Originality; Re-readability","month":"2025-11"},{"book_id":3,"title":"Dune","author":"Frank Herbert","genre":"Sci-Fi","year_published":1965,"date":"2025-12-01","stars":2,"review_text":"Found it inaccessible. Would benefit from a glossary upfront. The world-building, while impressive, is overwhelming.","word_count":15,"polarity":0.75,"subjectivity":1.0,"sentiment":"positive","confidence":0.875,"themes":"World-building; Accessibility","month":"2025-12"},{"book_id":4,"title":"Gone Girl","author":"Gillian Flynn","genre":"Thriller","year_published":2012,"date":"2025-01-01","stars":3,"review_text":"Clever and gripping but the ending left me cold. Flynn writes brilliant antagonists but the resolution felt rushed and unsatisfying.","word_count":20,"polarity":0.1933,"subjectivity":0.7667,"sentiment":"positive","confidence":0.5516,"themes":"Ending/Resolution","month":"2025-01"},{"book_id":4,"title":"Gone Girl","author":"Gillian Flynn","genre":"Thriller","year_published":2012,"date":"2025-02-01","stars":5,"review_text":"Incredibly addictive. Read it in two days. The unreliable narrator device is used to perfection. Dark and brilliant.","word_count":18,"polarity":0.25,"subjectivity":0.7667,"sentiment":"positive","confidence":0.5667,"themes":"General","month":"2025-02"},{"book_id":4,"title":"Gone Girl","author":"Gillian Flynn","genre":"Thriller","year_published":2012,"date":"2025-03-01","stars":2,"review_text":"Found it manipulative for manipulation's sake. The characters are repellent by design which makes the book exhausting.","word_count":17,"polarity":-0.65,"subjectivity":0.75,"sentiment":"negative","confidence":0.6625,"themes":"Character Depth","month":"2025-03"},{"book_id":4,"title":"Gone Girl","author":"Gillian Flynn","genre":"Thriller","year_published":2012,"date":"2025-04-01","stars":4,"review_text":"Genuinely shocking and compulsive. Flynn creates characters you hate and cannot stop reading about. Masterful thriller writing.","word_count":17,"polarity":-0.2667,"subjectivity":0.9667,"sentiment":"negative","confidence":0.6245,"themes":"Writing Style; Character Depth","month":"2025-04"},{"book_id":4,"title":"Gone Girl","author":"Gillian Flynn","genre":"Thriller","year_published":2012,"date":"2025-05-01","stars":2,"review_text":"Overrated. The twist is clever but the characters are so unpleasant that I struggled to care about anyone's fate.","word_count":19,"polarity":-0.2417,"subjectivity":0.8917,"sentiment":"negative","confidence":0.5947,"themes":"Character Depth","month":"2025-05"},{"book_id":4,"title":"Gone Girl","author":"Gillian Flynn","genre":"Thriller","year_published":2012,"date":"2025-06-01","stars":3,"review_text":"Gripping until the final act. The ending is deeply unsatisfying and undermines everything that came before it.","word_count":17,"polarity":0.1667,"subjectivity":0.8,"sentiment":"positive","confidence":0.55,"themes":"Ending/Resolution","month":"2025-06"},{"book_id":4,"title":"Gone Girl","author":"Gillian Flynn","genre":"Thriller","year_published":2012,"date":"2025-07-01","stars":5,"review_text":"Dark, sharp and completely original. Flynn writes female characters with rare complexity. One of the decade's best thrillers.","word_count":18,"polarity":0.2333,"subjectivity":0.5444,"sentiment":"positive","confidence":0.5104,"themes":"Character Depth; Accessibility; Originality","month":"2025-07"},{"book_id":4,"title":"Gone Girl","author":"Gillian Flynn","genre":"Thriller","year_published":2012,"date":"2025-08-01","stars":1,"review_text":"Deeply unpleasant book. Nihilistic to its core and the ending is a mess. Clever writing does not excuse a terrible conclusion.","word_count":21,"polarity":-0.3267,"subjectivity":0.6017,"sentiment":"negative","confidence":0.5332,"themes":"Writing Style; Ending/Resolution","month":"2025-08"},{"book_id":4,"title":"Gone Girl","author":"Gillian Flynn","genre":"Thriller","year_published":2012,"date":"2025-09-01","stars":5,"review_text":"Loved it. The dual narrative keeps you constantly off-balance. Nick and Amy are two of fiction's most memorable characters.","word_count":19,"polarity":0.425,"subjectivity":0.6583,"sentiment":"positive","confidence":0.5673,"themes":"Character Depth; Plot & Pacing","month":"2025-09"},{"book_id":4,"title":"Gone Girl","author":"Gillian Flynn","genre":"Thriller","year_published":2012,"date":"2025-10-01","stars":2,"review_text":"A page-turner but left me feeling empty. The cynicism is relentless and the ending infuriating.","word_count":15,"polarity":-0.2333,"subjectivity":0.4333,"sentiment":"negative","confidence":0.4844,"themes":"Emotional Impact; Ending/Resolution","month":"2025-10"},{"book_id":4,"title":"Gone Girl","author":"Gillian Flynn","genre":"Thriller","year_published":2012,"date":"2025-11-01","stars":4,"review_text":"Gripping, dark and fiercely intelligent. Flynn's prose crackles with energy. Couldn't put it down.","word_count":14,"polarity":0.2486,"subjectivity":0.6472,"sentiment":"positive","confidence":0.5366,"themes":"Writing Style","month":"2025-11"},{"book_id":4,"title":"Gone Girl","author":"Gillian Flynn","genre":"Thriller","year_published":2012,"date":"2025-12-01","stars":3,"review_text":"Mixed feelings. The writing is undeniably skilled but the story left me cold. Great craft in service of a nihilistic vision.","word_count":21,"polarity":0.14,"subjectivity":0.5,"sentiment":"neutral","confidence":0.5,"themes":"Writing Style; Plot & Pacing; Emotional Impact","month":"2025-12"},{"book_id":5,"title":"Sapiens","author":"Yuval Noah Harari","genre":"Non-Fiction","year_published":2011,"date":"2025-01-01","stars":4,"review_text":"Sweeping and provocative. Some arguments feel oversimplified but it genuinely reshapes how you see human history and civilization.","word_count":18,"polarity":0.2,"subjectivity":0.3,"sentiment":"positive","confidence":0.46,"themes":"Plot & Pacing","month":"2025-01"},{"book_id":5,"title":"Sapiens","author":"Yuval Noah Harari","genre":"Non-Fiction","year_published":2011,"date":"2025-02-01","stars":5,"review_text":"One of the most thought-provoking books I have ever read. Harari synthesises history, biology and philosophy with extraordinary clarity.","word_count":19,"polarity":0.4111,"subjectivity":0.6,"sentiment":"positive","confidence":0.5411,"themes":"Writing Style; Plot & Pacing; Themes & Meaning","month":"2025-02"},{"book_id":5,"title":"Sapiens","author":"Yuval Noah Harari","genre":"Non-Fiction","year_published":2011,"date":"2025-03-01","stars":4,"review_text":"Brilliant overview of human history. Some sections are oversimplified but the big picture thinking is genuinely exciting.","word_count":17,"polarity":0.3,"subjectivity":0.5,"sentiment":"positive","confidence":0.5,"themes":"Plot & Pacing","month":"2025-03"},{"book_id":5,"title":"Sapiens","author":"Yuval Noah Harari","genre":"Non-Fiction","year_published":2011,"date":"2025-04-01","stars":2,"review_text":"Overconfident and superficial. Harari presents contested ideas as settled facts. Engaging but needs more intellectual humility.","word_count":16,"polarity":0.4,"subjectivity":0.5333,"sentiment":"positive","confidence":0.5133,"themes":"General","month":"2025-04"},{"book_id":5,"title":"Sapiens","author":"Yuval Noah Harari","genre":"Non-Fiction","year_published":2011,"date":"2025-05-01","stars":5,"review_text":"Genuinely mind-expanding. The sections on shared myths and collective imagination completely changed my perspective.","word_count":14,"polarity":0.25,"subjectivity":0.45,"sentiment":"positive","confidence":0.4875,"themes":"General","month":"2025-05"},{"book_id":5,"title":"Sapiens","author":"Yuval Noah Harari","genre":"Non-Fiction","year_published":2011,"date":"2025-06-01","stars":3,"review_text":"Entertaining popular history but specialists will find too many simplifications. Good starting point not a definitive text.","word_count":17,"polarity":0.46,"subjectivity":0.56,"sentiment":"positive","confidence":0.5276,"themes":"Plot & Pacing","month":"2025-06"},{"book_id":5,"title":"Sapiens","author":"Yuval Noah Harari","genre":"Non-Fiction","year_published":2011,"date":"2025-07-01","stars":5,"review_text":"Astonishing scope and ambition. Manages to be both accessible and profound. Highly recommended for curious minds.","word_count":16,"polarity":0.2037,"subjectivity":0.783,"sentiment":"positive","confidence":0.5576,"themes":"Ending/Resolution; Themes & Meaning; Accessibility","month":"2025-07"},{"book_id":5,"title":"Sapiens","author":"Yuval Noah Harari","genre":"Non-Fiction","year_published":2011,"date":"2025-08-01","stars":3,"review_text":"Engaging but frustrating. Some of Harari's leaps of logic are breathtaking in their audacity. Read critically.","word_count":16,"polarity":0.25,"subjectivity":0.85,"sentiment":"positive","confidence":0.5875,"themes":"General","month":"2025-08"},{"book_id":5,"title":"Sapiens","author":"Yuval Noah Harari","genre":"Non-Fiction","year_published":2011,"date":"2025-09-01","stars":5,"review_text":"Magnificent achievement. Changed how I think about money, religion, and what it means to be human.","word_count":16,"polarity":0.5,"subjectivity":0.55,"sentiment":"positive","confidence":0.525,"themes":"General","month":"2025-09"},{"book_id":5,"title":"Sapiens","author":"Yuval Noah Harari","genre":"Non-Fiction","year_published":2011,"date":"2025-10-01","stars":4,"review_text":"Very accessible and engaging. A great introduction to big history thinking even if the depth is sometimes lacking.","word_count":18,"polarity":0.4219,"subjectivity":0.5094,"sentiment":"positive","confidence":0.504,"themes":"Plot & Pacing; World-building; Accessibility","month":"2025-10"},{"book_id":5,"title":"Sapiens","author":"Yuval Noah Harari","genre":"Non-Fiction","year_published":2011,"date":"2025-11-01","stars":5,"review_text":"Thought-provoking and beautifully written. The chapter on the agricultural revolution alone is worth the price of admission.","word_count":17,"polarity":0.5167,"subjectivity":0.4667,"sentiment":"positive","confidence":0.4828,"themes":"Writing Style","month":"2025-11"},{"book_id":5,"title":"Sapiens","author":"Yuval Noah Harari","genre":"Non-Fiction","year_published":2011,"date":"2025-12-01","stars":3,"review_text":"Decent popular science but the speculative chapters on the future of humanity feel underdeveloped.","word_count":14,"polarity":0.2556,"subjectivity":0.5639,"sentiment":"positive","confidence":0.5163,"themes":"General","month":"2025-12"},{"book_id":6,"title":"Project Hail Mary","author":"Andy Weir","genre":"Sci-Fi","year_published":2021,"date":"2025-01-01","stars":5,"review_text":"The most fun I've had reading science fiction in years. Pure joy wrapped in real physics. Rocky is one of the greatest characters in recent fiction.","word_count":26,"polarity":0.4306,"subjectivity":0.4214,"sentiment":"positive","confidence":0.4662,"themes":"Character Depth","month":"2025-01"},{"book_id":6,"title":"Project Hail Mary","author":"Andy Weir","genre":"Sci-Fi","year_published":2021,"date":"2025-02-01","stars":5,"review_text":"Absolute masterpiece. Weir at his very best. The science is brilliant, the characters are wonderful and the story is deeply moving.","word_count":21,"polarity":0.62,"subjectivity":0.738,"sentiment":"positive","confidence":0.6476,"themes":"Character Depth; Plot & Pacing; Emotional Impact","month":"2025-02"},{"book_id":6,"title":"Project Hail Mary","author":"Andy Weir","genre":"Sci-Fi","year_published":2021,"date":"2025-03-01","stars":5,"review_text":"Incredible. The friendship between Ryland and Rocky is one of the most touching things I have read in any genre.","word_count":20,"polarity":0.6333,"subjectivity":0.6333,"sentiment":"positive","confidence":0.5844,"themes":"Emotional Impact; Ending/Resolution","month":"2025-03"},{"book_id":6,"title":"Project Hail Mary","author":"Andy Weir","genre":"Sci-Fi","year_published":2021,"date":"2025-04-01","stars":5,"review_text":"Outstanding science fiction that works on every level. Funny, exciting, scientifically fascinating and genuinely emotional.","word_count":15,"polarity":0.35,"subjectivity":0.835,"sentiment":"positive","confidence":0.6172,"themes":"Emotional Impact","month":"2025-04"},{"book_id":6,"title":"Project Hail Mary","author":"Andy Weir","genre":"Sci-Fi","year_published":2021,"date":"2025-05-01","stars":4,"review_text":"Loved it but the beginning is slow while the amnesia device is established. Worth pushing through for the payoff.","word_count":19,"polarity":0.2333,"subjectivity":0.4333,"sentiment":"positive","confidence":0.4844,"themes":"Plot & Pacing","month":"2025-05"},{"book_id":6,"title":"Project Hail Mary","author":"Andy Weir","genre":"Sci-Fi","year_published":2021,"date":"2025-06-01","stars":5,"review_text":"Brilliant. The best of Weir's books. The science is explained accessibly and the narrative momentum is relentless.","word_count":17,"polarity":0.7583,"subjectivity":0.5583,"sentiment":"positive","confidence":0.5442,"themes":"Plot & Pacing","month":"2025-06"},{"book_id":6,"title":"Project Hail Mary","author":"Andy Weir","genre":"Sci-Fi","year_published":2021,"date":"2025-07-01","stars":4,"review_text":"Charming and inventive. Some of the science exposition goes too deep but the story more than compensates.","word_count":17,"polarity":0.425,"subjectivity":0.725,"sentiment":"positive","confidence":0.5956,"themes":"Plot & Pacing","month":"2025-07"},{"book_id":6,"title":"Project Hail Mary","author":"Andy Weir","genre":"Sci-Fi","year_published":2021,"date":"2025-08-01","stars":5,"review_text":"Wonderful. The kind of optimistic science fiction that reminds you why you fell in love with the genre.","word_count":18,"polarity":0.7,"subjectivity":0.8333,"sentiment":"positive","confidence":0.7333,"themes":"General","month":"2025-08"},{"book_id":6,"title":"Project Hail Mary","author":"Andy Weir","genre":"Sci-Fi","year_published":2021,"date":"2025-09-01","stars":3,"review_text":"Entertaining but I preferred The Martian. The amnesia plot device felt like a cheap way to deliver exposition.","word_count":18,"polarity":0.45,"subjectivity":0.7,"sentiment":"positive","confidence":0.59,"themes":"Plot & Pacing","month":"2025-09"},{"book_id":6,"title":"Project Hail Mary","author":"Andy Weir","genre":"Sci-Fi","year_published":2021,"date":"2025-10-01","stars":5,"review_text":"Superb storytelling. Made me genuinely emotional at the end which I did not expect from a hard sci-fi novel.","word_count":19,"polarity":0.2361,"subjectivity":0.7306,"sentiment":"positive","confidence":0.5544,"themes":"Plot & Pacing; Emotional Impact; Ending/Resolution; Accessibility","month":"2025-10"},{"book_id":6,"title":"Project Hail Mary","author":"Andy Weir","genre":"Sci-Fi","year_published":2021,"date":"2025-11-01","stars":5,"review_text":"Riveting from start to finish. Weir somehow makes orbital mechanics exciting. An extraordinary achievement.","word_count":14,"polarity":0.3778,"subjectivity":0.9333,"sentiment":"positive","confidence":0.6637,"themes":"Ending/Resolution","month":"2025-11"},{"book_id":6,"title":"Project Hail Mary","author":"Andy Weir","genre":"Sci-Fi","year_published":2021,"date":"2025-12-01","stars":3,"review_text":"Good but not quite as good as the hype suggested. Rocky is fantastic but some plot mechanics felt contrived.","word_count":19,"polarity":0.325,"subjectivity":0.7125,"sentiment":"positive","confidence":0.5691,"themes":"Plot & Pacing","month":"2025-12"},{"book_id":7,"title":"The Alchemist","author":"Paulo Coelho","genre":"Fiction","year_published":1988,"date":"2025-01-01","stars":3,"review_text":"Short and allegorical in ways that feel both profound and vague. Whether it works depends heavily on where you are in life.","word_count":22,"polarity":-0.1542,"subjectivity":0.575,"sentiment":"negative","confidence":0.5116,"themes":"Ending/Resolution; Themes & Meaning","month":"2025-01"},{"book_id":7,"title":"The Alchemist","author":"Paulo Coelho","genre":"Fiction","year_published":1988,"date":"2025-02-01","stars":5,"review_text":"Beautiful and uplifting. Coelho's fable about following your dreams is simple but the message is genuinely powerful.","word_count":17,"polarity":0.2875,"subjectivity":0.6143,"sentiment":"positive","confidence":0.5329,"themes":"Emotional Impact; Themes & Meaning","month":"2025-02"},{"book_id":7,"title":"The Alchemist","author":"Paulo Coelho","genre":"Fiction","year_published":1988,"date":"2025-03-01","stars":5,"review_text":"Deeply meaningful. Read it at a crossroads in my life and it gave me the courage to pursue what I truly wanted.","word_count":22,"polarity":0.5,"subjectivity":0.5,"sentiment":"positive","confidence":0.5,"themes":"Themes & Meaning","month":"2025-03"},{"book_id":7,"title":"The Alchemist","author":"Paulo Coelho","genre":"Fiction","year_published":1988,"date":"2025-04-01","stars":1,"review_text":"Overrated and simplistic. The philosophy is shallow and the writing is pedestrian. Does not deserve its legendary status.","word_count":18,"polarity":0.0556,"subjectivity":0.6667,"sentiment":"neutral","confidence":0.5093,"themes":"Writing Style; Ending/Resolution; Themes & Meaning","month":"2025-04"},{"book_id":7,"title":"The Alchemist","author":"Paulo Coelho","genre":"Fiction","year_published":1988,"date":"2025-05-01","stars":4,"review_text":"A gentle and wise story. Not everyone will connect with its spirituality but I found it genuinely moving.","word_count":18,"polarity":0.4333,"subjectivity":0.7333,"sentiment":"positive","confidence":0.6011,"themes":"Plot & Pacing; Emotional Impact","month":"2025-05"},{"book_id":7,"title":"The Alchemist","author":"Paulo Coelho","genre":"Fiction","year_published":1988,"date":"2025-06-01","stars":2,"review_text":"The message is lovely but the execution is too heavy-handed. Every page announces its own profundity.","word_count":16,"polarity":0.55,"subjectivity":0.875,"sentiment":"positive","confidence":0.7063,"themes":"Themes & Meaning","month":"2025-06"},{"book_id":7,"title":"The Alchemist","author":"Paulo Coelho","genre":"Fiction","year_published":1988,"date":"2025-07-01","stars":5,"review_text":"Perfect timing. Read this during a difficult period and it shifted something in me. Simple but profound.","word_count":17,"polarity":0.1458,"subjectivity":0.8393,"sentiment":"neutral","confidence":0.5495,"themes":"Themes & Meaning; Accessibility","month":"2025-07"},{"book_id":7,"title":"The Alchemist","author":"Paulo Coelho","genre":"Fiction","year_published":1988,"date":"2025-08-01","stars":4,"review_text":"Inspirational and beautifully written. The journey of Santiago mirrors the universal search for meaning.","word_count":14,"polarity":0.45,"subjectivity":0.6667,"sentiment":"positive","confidence":0.575,"themes":"Writing Style; Themes & Meaning","month":"2025-08"},{"book_id":7,"title":"The Alchemist","author":"Paulo Coelho","genre":"Fiction","year_published":1988,"date":"2025-09-01","stars":2,"review_text":"Did not resonate with me at all. The constant repetition of its own themes felt patronising.","word_count":16,"polarity":0.3,"subjectivity":0.6667,"sentiment":"positive","confidence":0.55,"themes":"Emotional Impact; Themes & Meaning","month":"2025-09"},{"book_id":7,"title":"The Alchemist","author":"Paulo Coelho","genre":"Fiction","year_published":1988,"date":"2025-10-01","stars":4,"review_text":"A lovely fable. Short, warm and thought-provoking. The perfect companion during life transitions.","word_count":13,"polarity":0.5,"subjectivity":0.59,"sentiment":"positive","confidence":0.545,"themes":"General","month":"2025-10"},{"book_id":7,"title":"The Alchemist","author":"Paulo Coelho","genre":"Fiction","year_published":1988,"date":"2025-11-01","stars":5,"review_text":"Timeless wisdom in a slim package. Re-reading this every few years feels like catching up with an old friend.","word_count":19,"polarity":0.1667,"subjectivity":0.4,"sentiment":"positive","confidence":0.4833,"themes":"Ending/Resolution; Themes & Meaning; Re-readability","month":"2025-11"},{"book_id":7,"title":"The Alchemist","author":"Paulo Coelho","genre":"Fiction","year_published":1988,"date":"2025-12-01","stars":3,"review_text":"Middling. Some passages are genuinely beautiful but others veer into platitude. Uneven but worth reading.","word_count":15,"polarity":0.3167,"subjectivity":0.4333,"sentiment":"positive","confidence":0.4789,"themes":"General","month":"2025-12"},{"book_id":8,"title":"Thinking, Fast and Slow","author":"Daniel Kahneman","genre":"Non-Fiction","year_published":2011,"date":"2025-01-01","stars":4,"review_text":"Dense academic writing but the concepts are transformative. The distinction between System 1 and System 2 thinking is essential knowledge.","word_count":20,"polarity":0.0,"subjectivity":0.15,"sentiment":"neutral","confidence":0.5,"themes":"Writing Style; Accessibility","month":"2025-01"},{"book_id":8,"title":"Thinking, Fast and Slow","author":"Daniel Kahneman","genre":"Non-Fiction","year_published":2011,"date":"2025-02-01","stars":5,"review_text":"One of the most important books on human psychology and decision-making. Mandatory reading for anyone in any field.","word_count":18,"polarity":0.3,"subjectivity":0.5333,"sentiment":"positive","confidence":0.51,"themes":"General","month":"2025-02"},{"book_id":8,"title":"Thinking, Fast and Slow","author":"Daniel Kahneman","genre":"Non-Fiction","year_published":2011,"date":"2025-03-01","stars":4,"review_text":"Fascinating but demanding. Kahneman rewards patience with insights that fundamentally change how you understand your own mind.","word_count":17,"polarity":0.65,"subjectivity":0.925,"sentiment":"positive","confidence":0.7763,"themes":"Themes & Meaning; Accessibility","month":"2025-03"},{"book_id":8,"title":"Thinking, Fast and Slow","author":"Daniel Kahneman","genre":"Non-Fiction","year_published":2011,"date":"2025-04-01","stars":3,"review_text":"Brilliant but exhausting. The sheer volume of research and ideas makes this difficult to read in long sessions.","word_count":18,"polarity":-0.01,"subjectivity":0.73,"sentiment":"neutral","confidence":0.5023,"themes":"Accessibility","month":"2025-04"},{"book_id":8,"title":"Thinking, Fast and Slow","author":"Daniel Kahneman","genre":"Non-Fiction","year_published":2011,"date":"2025-05-01","stars":5,"review_text":"Genuinely mind-altering. Made me aware of cognitive biases I exhibit every day. Dense but absolutely worth the effort.","word_count":18,"polarity":0.3167,"subjectivity":0.2833,"sentiment":"positive","confidence":0.4314,"themes":"Accessibility","month":"2025-05"},{"book_id":8,"title":"Thinking, Fast and Slow","author":"Daniel Kahneman","genre":"Non-Fiction","year_published":2011,"date":"2025-06-01","stars":3,"review_text":"The early chapters are outstanding. The later sections on economics and policy are less engaging but still worthwhile.","word_count":18,"polarity":0.2222,"subjectivity":0.4069,"sentiment":"positive","confidence":0.4793,"themes":"General","month":"2025-06"},{"book_id":8,"title":"Thinking, Fast and Slow","author":"Daniel Kahneman","genre":"Non-Fiction","year_published":2011,"date":"2025-07-01","stars":5,"review_text":"Essential reading. Kahneman's research on cognitive biases should be part of every school curriculum.","word_count":14,"polarity":0.0,"subjectivity":0.3,"sentiment":"neutral","confidence":0.5,"themes":"General","month":"2025-07"},{"book_id":8,"title":"Thinking, Fast and Slow","author":"Daniel Kahneman","genre":"Non-Fiction","year_published":2011,"date":"2025-08-01","stars":2,"review_text":"Too long and too academic for my taste. The core ideas could be delivered in a quarter of the pages.","word_count":20,"polarity":-0.025,"subjectivity":0.2,"sentiment":"neutral","confidence":0.4925,"themes":"General","month":"2025-08"},{"book_id":8,"title":"Thinking, Fast and Slow","author":"Daniel Kahneman","genre":"Non-Fiction","year_published":2011,"date":"2025-09-01","stars":5,"review_text":"Exceptional. Changed how I make decisions professionally and personally. The anchoring and availability heuristic chapters alone are worth it.","word_count":19,"polarity":0.2667,"subjectivity":0.375,"sentiment":"positive","confidence":0.4667,"themes":"Character Depth","month":"2025-09"},{"book_id":8,"title":"Thinking, Fast and Slow","author":"Daniel Kahneman","genre":"Non-Fiction","year_published":2011,"date":"2025-10-01","stars":4,"review_text":"Very good overview of behavioural economics. Some chapters feel repetitive but the overall contribution is enormous.","word_count":16,"polarity":0.165,"subjectivity":0.4825,"sentiment":"positive","confidence":0.4971,"themes":"General","month":"2025-10"},{"book_id":8,"title":"Thinking, Fast and Slow","author":"Daniel Kahneman","genre":"Non-Fiction","year_published":2011,"date":"2025-11-01","stars":4,"review_text":"Challenging but rewarding. Every chapter contains ideas that make you rethink assumptions you never knew you had.","word_count":17,"polarity":0.5,"subjectivity":1.0,"sentiment":"positive","confidence":0.75,"themes":"Originality","month":"2025-11"},{"book_id":8,"title":"Thinking, Fast and Slow","author":"Daniel Kahneman","genre":"Non-Fiction","year_published":2011,"date":"2025-12-01","stars":4,"review_text":"Slow going but ultimately profound. Kahneman writes with authority and the research is compelling.","word_count":14,"polarity":0.0278,"subjectivity":0.6667,"sentiment":"neutral","confidence":0.5046,"themes":"Plot & Pacing; Themes & Meaning","month":"2025-12"}];
+
+const RawChart = Chart;
+window.Chart = function(el, cfg){ const c = typeof el==='string'?document.getElementById(el):el; const ex=RawChart.getChart(c); if(ex) ex.destroy(); return new RawChart(c, cfg); };
+window.Chart.defaults = RawChart.defaults;
+const GRID=()=>getComputedStyle(document.body).getPropertyValue('--border').trim();
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+function starsHtml(n){return '★'.repeat(n)+'☆'.repeat(5-n)}
+function sentBadge(s){const m={'Positive':'sent-pos','Mixed':'sent-mix','Negative':'sent-neg'};return`<span class="sent-badge ${m[s]||'sent-mix'}">${s}</span>`}
+function pctBar(pos,neu,neg){return`<div style="display:flex;gap:2px;width:100px;height:8px"><div style="background:#1a7a4a;border-radius:2px;flex:${pos}"></div><div style="background:#c9922a;border-radius:2px;flex:${neu}"></div><div style="background:#b03030;border-radius:2px;flex:${neg}"></div></div>`}
+function polarColor(p){return p>=0.15?'#1a7a4a':p<=-0.10?'#b03030':'#7a6f2e'}
+
+// --- OVERVIEW charts ---
+function initOverview(){
+  // Donut
+  new Chart(document.getElementById('sentDonut'),{type:'doughnut',data:{labels:['Positive','Neutral','Negative'],datasets:[{data:[72.9,17.7,9.4],backgroundColor:['#1a7a4a','#c9922a','#b03030'],borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed}%`}}},cutout:'65%'}});
+
+  // Genre bar
+  const genres=[{g:'Sci-Fi',r:4.17,c:'#3a2d6e'},{g:'Non-Fiction',r:4.0,c:'#1a7a4a'},{g:'Self-Help',r:4.0,c:'#185fa5'},{g:'Fiction',r:3.79,c:'#c9922a'},{g:'Thriller',r:3.25,c:'#b03030'}];
+  new Chart(document.getElementById('genreBar'),{type:'bar',data:{labels:genres.map(g=>g.g),datasets:[{label:'Avg Rating',data:genres.map(g=>g.r),backgroundColor:genres.map(g=>g.c),borderWidth:0,borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{min:2.5,max:5,grid:{color:GRID()},ticks:{stepSize:.5}},y:{grid:{display:false}}}}});
+
+  // Polarity bar
+  const sorted=[...SENTIMENT_DATA].sort((a,b)=>b.avg_polarity-a.avg_polarity);
+  new Chart(document.getElementById('polarityBar'),{type:'bar',data:{labels:sorted.map(b=>b.title.length>14?b.title.slice(0,13)+'…':b.title),datasets:[{label:'Avg Polarity',data:sorted.map(b=>+b.avg_polarity.toFixed(3)),backgroundColor:sorted.map(b=>b.avg_polarity>=0.15?'#1a7a4a':b.avg_polarity<=-0.1?'#b03030':'#c9922a'),borderWidth:0,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:GRID()},ticks:{stepSize:.1}},x:{grid:{display:false},ticks:{font:{size:11}}}}}});
+
+  // Trend line — monthly polarity from REVIEWS
+  const months={};
+  REVIEWS.forEach(r=>{if(!months[r.month])months[r.month]={sum:0,n:0};months[r.month].sum+=r.polarity;months[r.month].n++;});
+  const mkeys=Object.keys(months).sort();
+  const mvals=mkeys.map(k=>+(months[k].sum/months[k].n).toFixed(3));
+  const mlabels=mkeys.map(k=>{const d=new Date(k+'-01');return d.toLocaleString('default',{month:'short'})});
+  new Chart(document.getElementById('trendLine'),{type:'line',data:{labels:mlabels,datasets:[{label:'Avg Polarity',data:mvals,borderColor:'#3a2d6e',backgroundColor:'rgba(58,45,110,.08)',fill:true,tension:.3,pointRadius:3,pointBackgroundColor:'#3a2d6e',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:GRID()},ticks:{stepSize:.05}},x:{grid:{display:false}}}}});
+
+  // Themes
+  const themes=[{t:'Plot & Pacing',m:20,pos:80},{t:'Themes & Meaning',m:20,pos:75},{t:'Emotional Impact',m:16,pos:81},{t:'Accessibility',m:16,pos:56},{t:'Ending/Resolution',m:16,pos:56}];
+  new Chart(document.getElementById('themeChart'),{type:'bar',data:{labels:themes.map(t=>t.t),datasets:[{label:'Mentions',data:themes.map(t=>t.m),backgroundColor:'#3a2d6e',borderWidth:0,borderRadius:4,yAxisID:'y'},{label:'Positive %',data:themes.map(t=>t.pos),backgroundColor:'rgba(26,122,74,.25)',borderColor:'#1a7a4a',borderWidth:1.5,borderRadius:4,type:'bar',yAxisID:'y2'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:GRID()},title:{display:true,text:'Mentions',font:{size:11}}},y2:{position:'right',min:0,max:100,grid:{display:false},title:{display:true,text:'Positive %',font:{size:11}}},x:{grid:{display:false}}}}});
+
+  // Insights cards
+  const insights=[
+    {icon:'🏆',label:'Top performer',text:'Project Hail Mary: 4.50★, 100% positive, polarity +0.462'},
+    {icon:'⚡',label:'Most polarising',text:'Gone Girl: 50% positive vs 42% negative — strongly divided readers'},
+    {icon:'📈',label:'Sentiment trend',text:'Polarity rose from +0.207 → +0.282 over 12 months — improving'},
+    {icon:'📖',label:'Genre leader',text:'Sci-Fi tops all genres: 4.17★ avg and 83% positive reviews'},
+    {icon:'💬',label:'Peak volume',text:'March 2025 was the busiest month with 9 reviews published'},
+    {icon:'🎯',label:'Highest engagement',text:'Emotional Impact theme: 81% positive — most resonant discussion topic'},
+  ];
+  document.getElementById('insights-grid').innerHTML=insights.map(i=>`
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:1.1rem;box-shadow:var(--shadow)">
+      <div style="font-size:1.5rem;margin-bottom:.5rem">${i.icon}</div>
+      <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:.3rem;font-weight:500">${i.label}</div>
+      <div style="font-size:.88rem;color:var(--ink2);line-height:1.5">${i.text}</div>
+    </div>`).join('');
+}
+
+// --- BOOKS page ---
+function initBooks(){
+  const tbody=document.getElementById('books-tbody');
+  const sorted=[...SENTIMENT_DATA].sort((a,b)=>b.avg_rating-a.avg_rating);
+  tbody.innerHTML=sorted.map(b=>`
+    <tr>
+      <td><div class="title-cell">${b.title}</div><div class="author-cell">${b.author}</div></td>
+      <td><span style="font-size:.78rem;background:var(--surface2);color:var(--ink3);border:1px solid var(--border);border-radius:20px;padding:2px 9px">${b.genre}</span></td>
+      <td><span class="stars">${starsHtml(Math.round(b.avg_rating))}</span> <span style="font-size:.8rem;color:var(--ink3)">${b.avg_rating.toFixed(2)}</span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="polarity-bar-wrap"><div class="polarity-bar" style="width:${Math.min(100,Math.max(0,(b.avg_polarity+1)/2*100))}%;background:${polarColor(b.avg_polarity)}"></div></div>
+          <span style="font-size:.8rem;color:${polarColor(b.avg_polarity)};font-weight:500">${b.avg_polarity>=0?'+':''}${b.avg_polarity.toFixed(3)}</span>
+        </div>
+      </td>
+      <td>${pctBar(b.positive_pct,b.neutral_pct,b.negative_pct)}<div style="font-size:.72rem;color:var(--ink3);margin-top:2px"><span style="color:var(--pos)">${b.positive_pct}%</span> · <span style="color:var(--neu)">${b.neutral_pct}%</span> · <span style="color:var(--neg)">${b.negative_pct}%</span></div></td>
+      <td>${sentBadge(b.overall_sentiment)}</td>
+    </tr>`).join('');
+
+  // Positive bar
+  const pSorted=[...SENTIMENT_DATA].sort((a,b)=>b.positive_pct-a.positive_pct);
+  new Chart(document.getElementById('posBar'),{type:'bar',data:{labels:pSorted.map(b=>b.title.length>16?b.title.slice(0,15)+'…':b.title),datasets:[{label:'Positive %',data:pSorted.map(b=>b.positive_pct),backgroundColor:pSorted.map(b=>b.positive_pct>=75?'#1a7a4a':b.positive_pct>=50?'#3a2d6e':'#b03030'),borderWidth:0,borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{min:0,max:105,grid:{color:GRID()},ticks:{callback:v=>v+'%'}},y:{grid:{display:false},ticks:{font:{size:11}}}}}});
+
+  // Scatter
+  new Chart(document.getElementById('scatter'),{type:'scatter',data:{datasets:[{label:'Books',data:SENTIMENT_DATA.map(b=>({x:b.avg_polarity,y:b.avg_rating,title:b.title})),backgroundColor:SENTIMENT_DATA.map(b=>b.overall_sentiment==='Mixed'?'#b03030':'#3a2d6e'),pointRadius:8,pointHoverRadius:10}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.title}: polarity ${c.raw.x.toFixed(3)}, rating ${c.raw.y}`}}},scales:{x:{title:{display:true,text:'Avg polarity'},grid:{color:GRID()}},y:{min:2.5,max:5,title:{display:true,text:'Avg rating'},grid:{color:GRID()},ticks:{stepSize:.5}}}}});
+}
+
+// --- REVIEWS page ---
+function initReviewFilters(){
+  const bookSel=document.getElementById('filterBook');
+  const genreSel=document.getElementById('filterGenre');
+  const books=[...new Set(REVIEWS.map(r=>r.title))].sort();
+  const genres=[...new Set(REVIEWS.map(r=>r.genre))].sort();
+  books.forEach(b=>{const o=document.createElement('option');o.value=b;o.textContent=b;bookSel.appendChild(o)});
+  genres.forEach(g=>{const o=document.createElement('option');o.value=g;o.textContent=g;genreSel.appendChild(o)});
+  renderReviews();
+}
+
+function renderReviews(){
+  const book=document.getElementById('filterBook').value;
+  const sent=document.getElementById('filterSentiment').value;
+  const genre=document.getElementById('filterGenre').value;
+  const q=document.getElementById('searchText').value.toLowerCase();
+  let data=REVIEWS.filter(r=>{
+    if(book&&r.title!==book)return false;
+    if(sent&&r.sentiment!==sent)return false;
+    if(genre&&r.genre!==genre)return false;
+    if(q&&!r.review_text.toLowerCase().includes(q)&&!r.title.toLowerCase().includes(q))return false;
+    return true;
+  });
+  document.getElementById('review-count').textContent=`Showing ${data.length} of 96 reviews`;
+  const colors={'positive':'#eaf5ee','negative':'#fceaea','neutral':'#fdf8e6'};
+  const textColors={'positive':'#1a7a4a','negative':'#b03030','neutral':'#7a6f2e'};
+  document.getElementById('reviews-grid').innerHTML=data.map(r=>`
+    <div class="review-card">
+      <div class="review-card-header">
+        <div>
+          <div class="review-book">${r.title}</div>
+          <div class="review-meta">${r.author} · ${r.genre} · ${r.date.slice(0,7)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="stars" style="font-size:.95rem">${starsHtml(r.stars)}</div>
+          <span class="sent-badge ${r.sentiment==='positive'?'sent-pos':r.sentiment==='negative'?'sent-neg':'sent-mix'}" style="margin-top:4px;display:block;text-align:center">${r.sentiment}</span>
+        </div>
+      </div>
+      <div class="review-text">"${r.review_text}"</div>
+      <div class="theme-tags">${r.themes.split(';').map(t=>`<span class="theme-tag">${t.trim()}</span>`).join('')}</div>
+      <div class="review-footer">
+        <span>${r.word_count} words · subjectivity ${r.subjectivity.toFixed(2)}</span>
+        <span class="polarity-pill" style="background:${colors[r.sentiment]};color:${textColors[r.sentiment]}">${r.polarity>=0?'+':''}${r.polarity.toFixed(3)}</span>
+      </div>
+    </div>`).join('');
+}
+
+// --- ANALYZER page charts ---
+function initAnalyzerCharts(){
+  // Stacked bar
+  const books=SENTIMENT_DATA;
+  new Chart(document.getElementById('stackedBar'),{type:'bar',data:{labels:books.map(b=>b.title.length>12?b.title.slice(0,11)+'…':b.title),datasets:[{label:'Positive',data:books.map(b=>b.positive_count),backgroundColor:'#1a7a4a',borderWidth:0,borderRadius:2},{label:'Neutral',data:books.map(b=>b.neutral_count),backgroundColor:'#c9922a',borderWidth:0},{label:'Negative',data:books.map(b=>b.negative_count),backgroundColor:'#b03030',borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:10}}},y:{stacked:true,grid:{color:GRID()}}},plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}}}}});
+
+  // Histogram
+  const bins=[-1,-.8,-.6,-.4,-.2,0,.2,.4,.6,.8,1];
+  const counts=new Array(bins.length-1).fill(0);
+  REVIEWS.forEach(r=>{for(let i=0;i<bins.length-1;i++){if(r.polarity>=bins[i]&&r.polarity<bins[i+1]){counts[i]++;break;}}if(r.polarity===1)counts[counts.length-1]++;});
+  const labels=bins.slice(0,-1).map((b,i)=>`${b.toFixed(1)} to ${bins[i+1].toFixed(1)}`);
+  new Chart(document.getElementById('histogram'),{type:'bar',data:{labels,datasets:[{label:'Reviews',data:counts,backgroundColor:bins.slice(0,-1).map(b=>b>=0.15?'#1a7a4a':b<=-0.1?'#b03030':'#c9922a'),borderWidth:0,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:10},maxRotation:45}},y:{grid:{color:GRID()},title:{display:true,text:'Review count',font:{size:11}}}}}});
+}
+
+// --- SENTIMENT ANALYZER ---
+const POSITIVE_WORDS=['beautiful','amazing','excellent','outstanding','wonderful','brilliant','fantastic','incredible','exceptional','magnificent','superb','perfect','love','loved','great','good','best','masterpiece','moving','touching','profound','insightful','gripping','compelling','fascinating','engaging','powerful','delightful','joyful','inspired','transformative','remarkable','extraordinary','stellar','captivating','uplifting','thought-provoking','luminous','immersive'];
+const NEGATIVE_WORDS=['terrible','awful','dreadful','horrible','disappointing','boring','tedious','slow','slog','unpleasant','frustrating','manipulative','shallow','simplistic','exhausting','repetitive','predictable','overrated','overhyped','cheap','confused','unconvincing','incoherent','poor','bad','worst','hate','hated','struggled','failed','mess','unsatisfying','nihilistic','cold','empty'];
+const INTENSIFIERS=['very','extremely','absolutely','completely','totally','utterly','genuinely','truly','deeply','incredibly','exceptionally','particularly','remarkably'];
+const NEGATORS=['not','never','no','without','barely','hardly','scarcely','didn\'t','couldn\'t','wouldn\'t','wasn\'t','aren\'t','isn\'t'];
+
+function analyzeClientSide(text){
+  const words=text.toLowerCase().replace(/[.,!?;:'"]/g,' ').split(/\s+/).filter(w=>w.length>0);
+  const wordCount=text.split(/\s+/).filter(w=>w.length>0).length;
+  let score=0,subjScore=0,matches=0;
+  for(let i=0;i<words.length;i++){
+    const w=words[i];
+    const prev=i>0?words[i-1]:'';
+    const prev2=i>1?words[i-2]:'';
+    const negated=NEGATORS.includes(prev)||NEGATORS.includes(prev2);
+    const intensified=INTENSIFIERS.includes(prev)||INTENSIFIERS.includes(prev2);
+    let wScore=0;
+    if(POSITIVE_WORDS.includes(w))wScore=intensified?.35:.2;
+    if(NEGATIVE_WORDS.includes(w))wScore=intensified?-.35:-.2;
+    if(wScore!==0){if(negated)wScore*=-0.7;score+=wScore;subjScore+=Math.abs(wScore)*1.4;matches++;}
+  }
+  const polarity=matches>0?Math.max(-1,Math.min(1,score/Math.max(1,matches)*2.5)):0;
+  const subjectivity=matches>0?Math.min(1,subjScore/Math.max(1,wordCount)*3):0.1;
+  const sentiment=polarity>=0.15?'positive':polarity<=-0.10?'negative':'neutral';
+  return{polarity,subjectivity,sentiment,wordCount};
+}
+
+function setSample(t){document.getElementById('analyzerText').value=t;}
+function clearAnalyzer(){document.getElementById('analyzerText').value='';document.getElementById('analyzerResult').style.display='none';document.getElementById('analyzerStatus').textContent='';}
+
+function analyzeSentiment(){
+  const text=document.getElementById('analyzerText').value.trim();
+  if(!text){document.getElementById('analyzerStatus').textContent='Please enter some text first.';return;}
+  const btn=document.getElementById('analyzeBtn');
+  btn.disabled=true;
+  document.getElementById('analyzerStatus').innerHTML='<span class="loader"></span> Analyzing…';
+  setTimeout(()=>{
+    const r=analyzeClientSide(text);
+    document.getElementById('analyzerResult').style.display='block';
+    const label=r.sentiment.charAt(0).toUpperCase()+r.sentiment.slice(1);
+    const sentCard=document.getElementById('resCardSent');
+    sentCard.className='result-card '+(r.sentiment==='positive'?'result-pos':r.sentiment==='negative'?'result-neg':'result-neu');
+    document.getElementById('resLabel').textContent=label;
+    document.getElementById('resPolarity').textContent=(r.polarity>=0?'+':'')+r.polarity.toFixed(3);
+    document.getElementById('resSubjectivity').textContent=r.subjectivity.toFixed(3);
+    document.getElementById('resWordCount').textContent=r.wordCount;
+    const pct=((r.polarity+1)/2*100).toFixed(1);
+    document.getElementById('polarMarker').style.left=pct+'%';
+    const verdicts={
+      positive:`This text carries a <strong>positive</strong> tone (polarity ${(r.polarity>=0?'+':'')+r.polarity.toFixed(3)}). The language suggests an overall favourable and encouraging sentiment. Subjectivity at ${r.subjectivity.toFixed(2)} indicates ${r.subjectivity>0.6?'an opinionated, personal perspective':'a relatively balanced, measured assessment'}.`,
+      negative:`This text carries a <strong>negative</strong> tone (polarity ${r.polarity.toFixed(3)}). The language signals dissatisfaction or critical sentiment. Subjectivity at ${r.subjectivity.toFixed(2)} suggests ${r.subjectivity>0.6?'a strongly personal, emotive response':'a fairly restrained critical perspective'}.`,
+      neutral:`This text has a <strong>neutral</strong> tone (polarity ${(r.polarity>=0?'+':'')+r.polarity.toFixed(3)}), sitting between clearly positive and negative. This could reflect a balanced assessment, mixed feelings, or largely factual language. Subjectivity at ${r.subjectivity.toFixed(2)} points to ${r.subjectivity>0.5?'some personal viewpoint':'an objective, factual framing'}.`
+    };
+    document.getElementById('aiVerdict').innerHTML=`<strong>Interpretation</strong>${verdicts[r.sentiment]}`;
+    btn.disabled=false;
+    document.getElementById('analyzerStatus').textContent='';
+  },600);
+}
+
+// --- THEME ---
+function renderAllCharts(){
+  initOverview();
+  initBooks();
+  initAnalyzerCharts();
+}
+function applyTheme(mode){
+  document.documentElement.setAttribute('data-theme',mode);
+  try{localStorage.setItem('bookpulse-theme',mode)}catch(e){}
+  const btn=document.getElementById('themeToggle');
+  if(btn){btn.textContent=mode==='dark'?'☀️ Light':'🌙 Dark';btn.setAttribute('aria-label','Switch to '+(mode==='dark'?'light':'dark')+' mode')}
+  Chart.defaults.color=getComputedStyle(document.body).getPropertyValue('--ink2').trim();
+}
+function toggleTheme(){
+  const next=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+  applyTheme(next);
+  renderAllCharts();
+}
+
+// --- INIT ---
+let saved='light';
+try{saved=localStorage.getItem('bookpulse-theme')||'light'}catch(e){}
+applyTheme(saved);
+initOverview();
+initBooks();
+initReviewFilters();
+initAnalyzerCharts();
+</script>
+</body>
+</html>
