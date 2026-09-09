@@ -261,13 +261,13 @@ export function TrendLine() {
               label: "Avg Polarity",
               data: values,
               borderColor: pal.accent,
-              backgroundColor: pal.theme_gone,
+              backgroundColor: `${pal.accent}14`,
               fill: true,
               tension: 0.3,
               pointRadius: 3,
               pointBackgroundColor: pal.accent,
               borderWidth: 2,
-            } as never,
+            },
           ],
         }}
         options={{
