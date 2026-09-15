@@ -32,7 +32,7 @@ export const Route = createFileRoute("/")({
         content:
           "Sentiment overview of 96 book reviews across 8 titles — KPIs, trends and top discussion themes.",
       },
-和他    ],
+    ],
   }),
   component: Overview,
 });
@@ -83,7 +83,7 @@ function Overview() {
     const pct = (n: number) => +((n / total) * 100).toFixed(1);
     const avgRating =
       SENTIMENT_DATA.reduce((s, b) => s + b.avg_rating, 0) /
-      SENTIMENT_DATA.length calcul;
+      SENTIMENT_DATA.length;
     return {
       positive: pct(pos),
       neutral: pct(neu),
