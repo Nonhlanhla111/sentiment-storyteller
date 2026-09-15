@@ -1,20 +1,22 @@
 # BookPulse — Sentiment Analyzer Dashboard
 
-A self-contained sentiment analysis dashboard for book reviews. Built as a single-file HTML/JS app and wrapped in a TanStack Start project for deployment.
+A sentiment analysis dashboard for book reviews, built as a multi-page
+[TanStack Start](https://tanstack.com/start) + React app with Tailwind CSS and
+Chart.js.
 
 ## Features
 
-- **Overview** — KPIs, sentiment distribution donut, genre ratings, polarity by book, sentiment trend, and top discussion themes.
-- **Books** — Per-book sentiment table with polarity bars plus positive-% and rating-vs-polarity charts.
-- **Reviews** — Filterable, searchable review feed (by book, sentiment, genre, free text).
-- **Live Analyzer** — Paste any text to get polarity, subjectivity, word count, a polarity gauge, and an auto-generated verdict.
-- **Report** — Generated narrative insights from the 96-review corpus.
+- **Overview** (`/`) — KPIs, sentiment distribution donut, genre ratings, polarity by book, sentiment trend, and top discussion themes.
+- **Books** (`/books`) — Per-book sentiment table with polarity bars plus positive-% and rating-vs-polarity charts.
+- **Reviews** (`/reviews`) — Filterable, searchable review feed (by book, sentiment, genre, free text).
+- **Live Analyzer** (`/analyzer`) — Paste any text to get polarity, subjectivity, word count, a polarity gauge, and an auto-generated verdict.
+- **Dark mode** — Toggle in the navigation; preference is remembered.
 
 ## Tech
 
-- HTML + vanilla JS + [Chart.js](https://www.chartjs.org/) for the dashboard (`public/bookpulse.html`).
-- [TanStack Start](https://tanstack.com/start) + React + Vite as the host app shell.
-- Tailwind / Shadcn available for future React-native pages.
+- [TanStack Start](https://tanstack.com/start) + React + Vite (file-based routes).
+- [Chart.js](https://www.chartjs.org/) via [react-chartjs-2](https://react-chartjs-2.js.org/) for all charts.
+- Tailwind CSS v4 with a semantic design-token theme (`src/styles.css`) — Playfair Display headings, DM Sans body.
 
 ## Getting started
 
@@ -23,23 +25,29 @@ bun install
 bun run dev
 ```
 
-Then open the local URL printed in the terminal. The root route embeds the dashboard from `public/bookpulse.html`.
-
 ## Project structure
 
 ```
-public/
-  bookpulse.html        # Self-contained dashboard (data + charts + analyzer)
 src/
+  data/bookpulse.ts            # 8-book sample corpus (book summaries + 96 reviews)
+  lib/analyzer.ts              # Client-side sentiment analyzer (lexicon-based)
+  components/
+    theme.tsx                  # Dark/light theme provider
+    bookpulse/ui.tsx           # Shared UI: KPI cards, badges, stars, polarity bars
+    bookpulse/charts.tsx       # All Chart.js chart components (theme-aware)
   routes/
-    index.tsx           # Root route — embeds the dashboard
-    __root.tsx          # App shell
-  styles.css            # Global styles
+    __root.tsx                 # App shell: navigation, fonts, theme toggle
+    index.tsx                  # / — Overview
+    books.tsx                  # /books
+    reviews.tsx                # /reviews
+    analyzer.tsx               # /analyzer
+  styles.css                   # Design tokens & global styles
 ```
 
-## Editing the dashboard
+## Editing the data
 
-All charts, sample data, and the analyzer logic live inside `public/bookpulse.html`. Open it directly in a browser to iterate without running the dev server.
+All sample data lives in `src/data/bookpulse.ts`. Charts, KPIs, and the review
+feed are computed from that corpus, so edits propagate everywhere automatically.
 
 ## License
 

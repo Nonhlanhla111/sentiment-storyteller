@@ -33,10 +33,6 @@ export const Route = createFileRoute("/books")({
   component: Books,
 });
 
-const GENRE_LABEL: Record<string, string> = {
-  "Sci-Fi": "bg-secondary text-muted-foreground",
-};
-
 function Books() {
   const sorted = [...SENTIMENT_DATA].sort((a, b) => b.avg_rating - a.avg_rating);
 
