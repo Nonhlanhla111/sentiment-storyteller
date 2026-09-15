@@ -89,7 +89,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
- Cocoa      { name: "twitter:title", content: "BookPulse — Book Review Sentiment Dashboard" },
+      { name: "twitter:title", content: "BookPulse — Book Review Sentiment Dashboard" },
       {
         name: "twitter:description",
         content:

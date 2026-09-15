@@ -32,7 +32,7 @@ export function ChartCard({
   children,
   className,
 }: {
-  title: string;
+  title?: string;
   children: ReactNode;
   className?: string;
 }) {
@@ -43,9 +43,11 @@ export function ChartCard({
         className,
       )}
     >
-      <h3 className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">
-        {title}
-      </h3>
+      {title ? (
+        <h3 className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">
+          {title}
+        </h3>
+      ) : null}
       {children}
     </div>
   );
